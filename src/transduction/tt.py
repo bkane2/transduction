@@ -512,7 +512,6 @@ def fill_template(template, match_result, preds={}):
       else:
         return cons(flatten_sequences(val), fill_template_rec(template[1:], match_result))
     if spec_function(template[0]):
-      fname = template[0][:-1].replace('-', '_')
       if fname in DEFAULT_PREDS:
         f = DEFAULT_PREDS[fname]
       elif fname in preds:
