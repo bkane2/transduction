@@ -11,9 +11,10 @@ DEFAULT_PREDS = {
 
 def register_pred(x):
   global DEFAULT_PREDS
-  if x.__name__ in DEFAULT_PREDS:
-    raise Exception(f'Predicate {x.__name__} is already registered')
-  DEFAULT_PREDS[x.__name__] = x
+  pred = x.__name__.replace('_', '-')
+  if pred in DEFAULT_PREDS:
+    raise Exception(f'Predicate {pred} is already registered')
+  DEFAULT_PREDS[pred] = x
 
 
 def ok(x):
@@ -129,7 +130,7 @@ def val(var, expr, preds={}):
     Either a non-negative integer or a match variable with {!,?,*,+} as a prefix.
   expr : s-expr
     An S-expression to check.
-  preds : dict
+  preds : dict, optional
     A dict mapping predicate names to functions implementing those predicates.
   
   Returns
@@ -141,10 +142,7 @@ def val(var, expr, preds={}):
   elif var in ['!', '?', '*', '+']:
     raise Exception(f'{var} is not allowed as a variable')
   else:
-    fname = var[1:].replace('-', '_')
-    # For the pred 'list', the function is 'lst' since the former is reserved.
-    if fname == 'list':
-      fname = 'lst'
+    fname = var[1:]
     if fname in DEFAULT_PREDS:
       f = DEFAULT_PREDS[fname]
     elif fname in preds:
@@ -227,16 +225,16 @@ def match(pa, ex, feats={}, preds={}):
       - An integer >= 0, where 0, 1, 2, ... respectively mean "zero or more expressions",
         "at most one expression", "at most 2 expressions", at most 3 expressions", etc.
       - A dotted atom, such as ``.verb`` or ``.branch-of-math``, i.e., starting with a dot and
-        denoting features of atoms, as defined by the 'feats' argument. These are matched
+        denoting features of atoms, as defined by the `feats` argument. These are matched
         by checking whether a given expression is connected to the feature through a chain
         of 'isa' connections.
       - Any other atom, which simply matches an identical atom in `ex`.
   ex : s-expr
     The input to match.
-  feats : dict
+  feats : dict, optional
     A dict mapping a word w to a feature list x1, ..., xk, such that
     ``isa(w, xi)`` for each feature xi.
-  preds : dict
+  preds : dict, optional
     A dict mapping predicate names to functions implementing those predicates.
 
   Returns
@@ -484,7 +482,7 @@ def fill_template(template, match_result, preds={}):
         match the arguments provided in `template`.
   match_result : s-expr
     An S-expression containing sequence expressions such as ``[:seq, [a, b], c, [d, [f, g]]]``.
-  preds : dict
+  preds : dict, optional
     A dict mapping predicate names to functions implementing those predicates.
 
   Returns
@@ -528,9 +526,118 @@ def fill_template(template, match_result, preds={}):
   return fill_template_rec(template, match_result)
 
 
-def apply(rule, expr, feats={}, preds={}):
-  """Apply a rule (a pattern/template pair) to a given expression.
+def apply_rules(rules, expr, feats={}, preds={},
+                rule_order='slow-forward',
+                shallow=False,
+                max_n=1000):
+  """Apply each rule (a pattern/template pair) within a list of rules to a given expression until convergence.
+
+  Parameters
+  ----------
+  rules : list[tuple[s-expr, s-expr]]
+    A list of tuples (<pattern>, <template>), where ``pattern`` is a pattern
+    to match, and ``template`` is the template to use to replace the matched
+    expression, potentially containing references to the matched sequences.
+  expr : s-expr
+    The expression to apply the rules to.
+  feats : dict, optional
+    A dict mapping a word w to a feature list x1, ..., xk, such that
+    ``isa(w, xi)`` for each feature xi.
+  preds : dict, optional
+    A dict mapping predicate names to functions implementing those predicates.
+  rule_order : str, default='slow-forward'
+    The order to apply the rules; the value must be one of the following options:
+
+      * slow-forward - apply each rule until that rule no longer applies,
+        possibly repeating the entire sequence.
+      * earliest-first - always apply the first rule in the list that
+        is applicable, repeat until no rules are applicable (the rule
+        list may be processed multiple times).
+      * fast-forward - apply each rule at most once, in order, repeating
+        the list until convergence.
+    
+  shallow : bool, default=False
+    If given as True, only match the top-level expression. Otherwise, use the first
+    match obtained in a recursive tree search of the expression.
+  max_n : int, default=1000
+    The limit on the maximum number of edits to make to the expression.
+
+  Returns
+  -------
+  s-expr
+    The modified expression after applying the rules.
+  """
+  if rule_order not in ['slow-forward', 'earliest-first', 'fast-forward']:
+    rule_order = 'slow-forward'
+
+  def apply_shallow(rule, expr):
+    nonlocal feats, preds
+    match_result = match(rule[0], expr, feats, preds)
+    if match_result:
+      return fill_template(rule[1], match_result, preds), True
+    else:
+      return expr, False
+    
+  def apply_deep(rule, expr):
+    nonlocal feats, preds
+    match_result = match(rule[0], expr, feats, preds)
+    if match_result:
+      return fill_template(rule[1], match_result, preds), True
+    elif not expr or not isinstance(expr, list):
+      return expr, False
+    else:
+      expr1 = []
+      success = False
+      for e in expr:
+        if not success:
+          e1, success = apply_deep(rule, e)
+        else:
+          e1 = e
+        expr1.append(e1)
+      return expr1, success
   
+  apply_func = apply_shallow if shallow else apply_deep
+  expr1 = expr
+  converged = False
+  prevs = [expr1]
+  n = 0
+  
+  if rule_order == 'slow-forward':
+    while not converged:
+      converged = True
+      for rule in rules:
+        converged2 = False
+        while not converged2 and n < max_n:
+          converged2 = True
+          expr1, success = apply_func(rule, expr1)
+          if success:
+            n += 1
+            if expr1 not in prevs:
+              converged = False
+              converged2 = False
+              prevs.append(expr1)
+
+  elif rule_order in ['earliest-first', 'fast-forward']:
+    while not converged:
+      converged = True
+      for rule in rules:
+        expr1, success = apply_func(rule, expr1)
+        if success:
+          n += 1
+          if expr1 not in prevs:
+            converged = False
+            prevs.append(expr1)
+          if rule_order == 'earliest-first':
+            break
+
+  return expr1
+
+
+def apply_rule(rule, expr, feats={}, preds={},
+                shallow=False,
+                max_n=1000):
+  """Apply a rule (a pattern/template pair) to a given expression until convergence.
+
   Parameters
   ----------
   rule : tuple[s-expr, s-expr]
@@ -539,21 +646,20 @@ def apply(rule, expr, feats={}, preds={}):
     expression, potentially containing references to the matched sequences.
   expr : s-expr
     The expression to apply the rule to.
-  feats : dict
+  feats : dict, optional
     A dict mapping a word w to a feature list x1, ..., xk, such that
     ``isa(w, xi)`` for each feature xi.
-  preds : dict
+  preds : dict, optional
     A dict mapping predicate names to functions implementing those predicates.
+  shallow : bool, default=False
+    If given as True, only match the top-level expression. Otherwise, use the first
+    match obtained in a recursive tree search of the expression.
+  max_n : int, default=1000
+    The limit on the maximum number of edits to make to the expression.
 
   Returns
   -------
   s-expr
-    The input expression with the matched pattern (if any) replaced with the
-    filled template.
+    The modified expression after applying the rule.
   """
-  pattern, template = rule
-  match_result = match(pattern, expr, feats, preds)
-  if match_result:
-    return fill_template(template, match_result, preds)
-  else:
-    return expr
+  return apply_rules([rule], expr, feats=feats, preds=preds, shallow=shallow, max_n=max_n)
