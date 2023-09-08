@@ -1,7 +1,5 @@
 # Python Tree Transduction (TT)
 
-<!-- [![PyPI package](https://img.shields.io/badge/pip%20install-example--pypi--package-brightgreen)](https://pypi.org/project/example-pypi-package/) [![version number](https://img.shields.io/pypi/v/example-pypi-package?color=green&label=version)](https://github.com/tomchen/example_pypi_package/releases) [![Actions Status](https://github.com/tomchen/example_pypi_package/workflows/Test/badge.svg)](https://github.com/tomchen/example_pypi_package/actions) [![License](https://img.shields.io/github/license/tomchen/example_pypi_package)](https://github.com/tomchen/example_pypi_package/blob/main/LICENSE) -->
-
 This package implements a "minimal" pattern-based tree transduction language for Python. This is originally based on the [TTT tree transduction language](https://www.cs.rochester.edu/~schubert/papers/ttt-atanlp12.pdf) and [Common Lisp implementation](https://github.com/genelkim/ttt); however, it employs a less powerful, but simpler, pattern-matching syntax.
 
 Tree transduction allows for mapping any "S-Expression" (i.e., a recursively nested list of lists, where non-lists are atoms) to another S-Expression using a set of rules, where each rule consists of a *match pattern* and a *fill template*. The match pattern specifies a (sub-)expression to match, and the fill template provides a (sub-)expression to replace the matched expression with. 
