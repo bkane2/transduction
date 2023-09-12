@@ -9,7 +9,7 @@ def is_a(x):
 def testpred(*args):
   return '-'.join(args)
 
-tt.register_pred(is_a)
+tt.register_pred(is_a, include_neg=True)
 
 pa = ['a', '.testfeat', ['x', 2, 'z'], '?expr']
 ex = ['a', 'b', ['x', 'y', 'z'], 'x']
@@ -37,6 +37,20 @@ print(tt.apply_rule(
   ['z', 'a', 'a', 'a', 'test', 'x'],
   preds={'testpred':testpred}))
 # -> ['z', 'a-a-a-test', 'x']
+
+print(tt.apply_rule(
+  ([1, '*not-is-a', 'test', 0],
+   ['1', ['testpred!', '2', '3'], '4']),
+  ['z', 'b', 'c', 'b', 'test', 'x'],
+  preds={'testpred':testpred}))
+# -> ['z', 'b-c-b-test', 'x']
+
+print(tt.apply_rule(
+  ([1, '*not-is-a', 'test', 0],
+   ['1', ['testpred!', '2', '3'], '4']),
+  ['z', 'b', 'a', 'b', 'test', 'x'],
+  preds={'testpred':testpred}))
+# -> []
 
 print(tt.apply_rules(
   [

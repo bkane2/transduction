@@ -9,12 +9,19 @@ DEFAULT_PREDS = {
   'list' : listp
 }
 
-def register_pred(x):
+def register_pred(f, include_neg=False):
   global DEFAULT_PREDS
-  pred = x.__name__.replace('_', '-')
+  pred = f.__name__.replace('_', '-')
   if pred in DEFAULT_PREDS:
     raise Exception(f'Predicate {pred} is already registered')
-  DEFAULT_PREDS[pred] = x
+  DEFAULT_PREDS[pred] = f
+
+  if include_neg:
+    pred_neg = 'not-'+pred
+    if pred_neg in DEFAULT_PREDS:
+      raise Exception(f'Predicate {pred_neg} is already registered')
+    DEFAULT_PREDS[pred] = lambda x: not f(x)
+
 
 
 def ok(x):

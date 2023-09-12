@@ -204,6 +204,12 @@ tt.register_pred(custom_match_pred)
 tt.register_pred(custom_eval_pred)
 ```
 
+If the optional argument `include_neg` is given as `True`, the negated version of the predicate will also be added (i.e., one that will return true in cases where the original pred turns false). This will have the name `not-<original_pred>`.
+
+```python
+tt.register_pred(custom_match_pred, include_neg=True)
+```
+
 Second, they can be supplied as a dict argument to the above functions:
 
 ```python
