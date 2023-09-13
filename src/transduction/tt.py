@@ -20,7 +20,7 @@ def register_pred(f, include_neg=False):
     pred_neg = 'not-'+pred
     if pred_neg in DEFAULT_PREDS:
       raise Exception(f'Predicate {pred_neg} is already registered')
-    DEFAULT_PREDS[pred] = lambda x: not f(x)
+    DEFAULT_PREDS[pred_neg] = lambda x: not f(x)
 
 
 
