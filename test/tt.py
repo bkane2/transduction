@@ -43,14 +43,14 @@ print(tt.apply_rule(
    ['1', ['testpred!', '2', '3'], '4']),
   ['z', 'b', 'c', 'b', 'test', 'x'],
   preds={'testpred':testpred}))
-# -> ['z', 'b-c-b-test', 'x']
+# -> ['z-b-c-b-test', 'x']
 
 print(tt.apply_rule(
   ([1, '*not-is-a', 'test', 0],
    ['1', ['testpred!', '2', '3'], '4']),
   ['z', 'b', 'a', 'b', 'test', 'x'],
   preds={'testpred':testpred}))
-# -> []
+# -> ['z', 'b', 'a', 'b', 'test', 'x']
 
 print(tt.apply_rules(
   [
