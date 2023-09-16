@@ -505,14 +505,14 @@ def fill_template(template, match_result, preds={}):
     if template == 0 or template == '0':
       return flatten_sequences(match_result)
     ii = position_index(template)
-    if ii:
+    if isinstance(ii, int):
       return flatten_sequences(indexed_element_of(match_result, ii))
     if atom(template):
       return template
     if listp(template[0]):
       return cons(fill_template_rec(template[0], match_result), fill_template_rec(template[1:], match_result))
     ii = position_index(template[0])
-    if ii:
+    if isinstance(ii, int):
       val = indexed_element_of(match_result, ii)
       if val and listp(val) and val[0] == ':seq':
         return flatten_sequences(val[1:]) + fill_template_rec(template[1:], match_result)
